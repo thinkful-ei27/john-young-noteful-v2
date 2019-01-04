@@ -11,6 +11,7 @@
 		"start": "node server.js"
 	},
 	"dependencies": {
+		"axios": "^0.18.0",
 		"cors": "^2.8.4",
 		"express": "^4.16.4",
 		"knex": "^0.15.2",

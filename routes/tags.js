@@ -3,22 +3,22 @@
 const express = require('express');
 
 // Create an router instance (aka "mini-app")
-const folders = express.Router();
+const tags = express.Router();
 const knex = require('../knex');
 
 // Get All (and search by query)
-folders.get('/', (req, res, next) => {
+tags.get('/', (req, res, next) => {
   const { searchTerm } = req.query;
-  
+    
   knex
     .select('id', 'name')
-    .from('folders')
-    // .modify(queryBuilder => {
-    //   if (searchTerm) {
-    //     queryBuilder.where('title', 'like', `%${searchTerm}%`);
-    //   }
-    // })
-    .orderBy('folders.id')
+    .from('tags')
+  // .modify(queryBuilder => {
+  //   if (searchTerm) {
+  //     queryBuilder.where('title', 'like', `%${searchTerm}%`);
+  //   }
+  // })
+    .orderBy('tags.id')
     .then(results => {
       res.json(results);
     })
@@ -26,14 +26,14 @@ folders.get('/', (req, res, next) => {
       next(err);
     });
 });
-
-// Get a single item
-folders.get('/:id', (req, res, next) => {
-  const id = req.params.id;
   
+// Get a single item
+tags.get('/:id', (req, res, next) => {
+  const id = req.params.id;
+    
   knex
     .select('id', 'name')
-    .from('folders')
+    .from('tags')
     .where('id', id)
     .orderBy('id')
     .then(results => {
@@ -43,29 +43,29 @@ folders.get('/:id', (req, res, next) => {
       next(err);
     });
 });
-
-// Put update an item
-folders.put('/:id', (req, res, next) => {
-  const id = req.params.id;
   
+// Put update an item
+tags.put('/:id', (req, res, next) => {
+  const id = req.params.id;
+    
   /***** Never trust users - validate input *****/
   const updateObj = {};
   const updateableFields = ['name'];
-  
+    
   updateableFields.forEach(field => {
     if (field in req.body) {
       updateObj[field] = req.body[field];
     }
   });
-  
+    
   /***** Never trust users - validate input *****/
   if (!updateObj.name) {
     const err = new Error('Missing `name` in request body');
     err.status = 400;
     return next(err);
   }
-  
-  knex('folders')
+    
+  knex('tags')
     .where({id: id})
     .update(updateObj, ['id', 'name'])
     .then(results => {
@@ -75,11 +75,11 @@ folders.put('/:id', (req, res, next) => {
       next(err);
     });
 });
-
-// Post (insert) an item
-folders.post('/', (req, res, next) => {
-  const { name } = req.body;
   
+// Post (insert) an item
+tags.post('/', (req, res, next) => {
+  const { name } = req.body;
+    
   const newItem = { name };
   /***** Never trust users - validate input *****/
   if (!newItem.name) {
@@ -87,10 +87,10 @@ folders.post('/', (req, res, next) => {
     err.status = 400;
     return next(err);
   }
-  
+    
   knex
     .insert(newItem, ['id', 'name'])
-    .into('folders')
+    .into('tags')
     .then(results => {
       res.json(results[0]);
     })
@@ -98,12 +98,12 @@ folders.post('/', (req, res, next) => {
       next(err);
     });
 });
-
-// Delete an item
-folders.delete('/:id', (req, res, next) => {
-  const id = req.params.id;
   
-  knex('folders')
+// Delete an item
+tags.delete('/:id', (req, res, next) => {
+  const id = req.params.id;
+    
+  knex('tags')
     .where('id', id)
     .del()
     .then(results => {
@@ -113,5 +113,5 @@ folders.delete('/:id', (req, res, next) => {
       next(err);
     });
 });
-
-module.exports = folders;
+  
+module.exports = tags;

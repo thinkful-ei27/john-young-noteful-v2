@@ -12,16 +12,21 @@ const router = express.Router();
 // const notes = simDB.initialize(data);
 const knex = require('../knex');
 
+const fullQuery = (queryBuilder) => {
+  queryBuilder
+    .select('notes.id', 'title', 'content', 'folders.id as folderId', 'folders.name as folderName', 'tags.id as tagId', 'tags.name as tagName')
+    .leftJoin('folders', 'notes.folder_id', 'folders.id')
+    .leftJoin('notes_tags', 'notes.id', 'notes_tags.note_id')
+    .leftJoin('tags', 'notes_tags.tag_id', 'tags.id');
+};
+
 // Get All (and search by query)
 router.get('/', (req, res, next) => {
   const { searchTerm, folderId, tagId } = req.query;
 
   knex
-    .select('notes.id', 'title', 'content', 'folders.id as folderId', 'folders.name as folderName', 'tags.id as tagId', 'tags.name as tagName')
-    .from('notes')
-    .leftJoin('folders', 'notes.folder_id', 'folders.id')
-    .leftJoin('notes_tags', 'notes.id', 'notes_tags.note_id')
-    .leftJoin('tags', 'notes_tags.tag_id', 'tags.id')
+    .table('notes')
+    .modify(fullQuery)
     .modify(queryBuilder => {
       if (searchTerm) {
         queryBuilder.where('title', 'like', `%${searchTerm}%`);
@@ -56,11 +61,8 @@ router.get('/:id', (req, res, next) => {
   const id = req.params.id;
 
   knex
-    .select('notes.id', 'title', 'content', 'folders.id as foldersId', 'folders.name as foldersName', 'tags.id as tagId', 'tags.name as tagName')
-    .from('notes')
-    .leftJoin('folders', 'notes.folder_id', 'folders.id')
-    .leftJoin('notes_tags', 'notes.id', 'notes_tags.note_id')
-    .leftJoin('tags', 'notes_tags.tag_id', 'tags.id')
+    .table('notes')
+    .modify(fullQuery)
     .where('notes.id', id)
     .orderBy('notes.id')
     .then(result => {
@@ -104,29 +106,32 @@ router.put('/:id', (req, res, next) => {
     .update(updateObj, ['id'])
     .then(([id]) => {
       noteId = id.id;
-      // Delete current related tags from notes_tags table
-      return knex
-        .del()
-        .from('notes_tags')
-        .where('note_id', noteId);
+      if (req.body.tags) {
+        return knex
+          .del()
+          .from('notes_tags')
+          .where('note_id', noteId);
+      } else {
+        return null;
+      }
     })
     .then(() => {
       // Insert related tags into notes_tags table
-      let tags = req.body.tags;
-      console.log(`Tags to print are ${tags}`);
-      tags.forEach(tag => {
-        updateTags.push({note_id: noteId, tag_id: tag});
-      });
-      return knex('notes_tags')
-        .insert(updateTags);
+      if (req.body.tags) {
+        let tags = req.body.tags;
+        tags.forEach(tag => {
+          updateTags.push({note_id: noteId, tag_id: tag});
+        });
+        return knex('notes_tags')
+          .insert(updateTags);
+      } else {
+        return null;
+      }
     })
     .then(() => {
       return knex
-        .select('notes.id', 'title', 'content', 'folders.id as foldersId', 'folders.name as foldersName', 'tags.id as tagId', 'tags.name as tagName')
-        .from('notes')
-        .leftJoin('folders', 'notes.folder_id', 'folders.id')
-        .leftJoin('notes_tags', 'notes.id', 'notes_tags.note_id')
-        .leftJoin('tags', 'notes_tags.tag_id', 'tags.id')
+        .table('notes')
+        .modify(fullQuery)
         .where('notes.id', noteId);
     })
     .then((result) => {
@@ -168,11 +173,8 @@ router.post('/', (req, res, next) => {
     })
     .then(() => {
       return knex
-        .select('notes.id', 'title', 'content', 'folder_id as folderId', 'folders.name as folderName', 'tags.id as tagId', 'tags.name as tagName')
-        .from('notes')
-        .leftJoin('folders', 'notes.folder_id', 'folders.id')
-        .leftJoin('notes_tags', 'notes.id', 'notes_tags.note_id')
-        .leftJoin('tags', 'notes_tags.tag_id', 'tags.id')
+        .table('notes')
+        .modify(fullQuery)
         .where('notes.id', noteId);
     })
     .then(result => {

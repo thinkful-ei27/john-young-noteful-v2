@@ -79,10 +79,12 @@ router.get('/:id', (req, res, next) => {
 // Put update an item
 router.put('/:id', (req, res, next) => {
   const id = req.params.id;
+
   /***** Never trust users - validate input *****/
   const updateObj = {};
   const updateableFields = ['title', 'content', 'folder_id'];
   let noteId;
+  let updateTags = [];
 
   updateableFields.forEach(field => {
     if (field in req.body) {
@@ -102,13 +104,39 @@ router.put('/:id', (req, res, next) => {
     .update(updateObj, ['id'])
     .then(([id]) => {
       noteId = id.id;
-      return knex.select('notes.id', 'title', 'content', 'folder_id as folderId', 'folders.name as folderName')
+      // Delete current related tags from notes_tags table
+      return knex
+        .del()
+        .from('notes_tags')
+        .where('note_id', noteId);
+    })
+    .then(() => {
+      // Insert related tags into notes_tags table
+      let tags = req.body.tags;
+      console.log(`Tags to print are ${tags}`);
+      tags.forEach(tag => {
+        updateTags.push({note_id: noteId, tag_id: tag});
+      });
+      return knex('notes_tags')
+        .insert(updateTags);
+    })
+    .then(() => {
+      return knex
+        .select('notes.id', 'title', 'content', 'folders.id as foldersId', 'folders.name as foldersName', 'tags.id as tagId', 'tags.name as tagName')
         .from('notes')
         .leftJoin('folders', 'notes.folder_id', 'folders.id')
+        .leftJoin('notes_tags', 'notes.id', 'notes_tags.note_id')
+        .leftJoin('tags', 'notes_tags.tag_id', 'tags.id')
         .where('notes.id', noteId);
     })
-    .then(([result]) => {
-      res.json(result);
+    .then((result) => {
+      if (result) {
+        console.log(result);
+        const hydrated = hydrateNotes(result);
+        res.json(hydrated);
+      } else {
+        next();
+      }
     })
     .catch(err => {
       next(err);
